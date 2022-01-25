@@ -40,6 +40,7 @@ func (h Helm) Render() ([]unstructured.Unstructured, error) {
 		return unstructuredManifests, err
 	}
 	helmChart, values, err := h.getChartAndValues()
+
 	if err != nil {
 		return unstructuredManifests, err
 	}
@@ -54,12 +55,11 @@ func (h Helm) Render() ([]unstructured.Unstructured, error) {
 	return unstructuredManifests, nil
 }
 
-func (h Helm) toUnstructured(list map[string]string, unstructuredManifests *[]unstructured.Unstructured) (error) {
+func (h Helm) toUnstructured(list map[string]string, unstructuredManifests *[]unstructured.Unstructured) error {
 
 	var unstructuredRes unstructured.Unstructured
 	for name, manifest := range list {
-
-		if !strings.HasSuffix(name, ".yaml ") {
+		if !strings.HasSuffix(name, ".yaml") {
 			continue
 		}
 		err := runtime.DecodeInto(h.Decoder, bytes.NewBufferString(manifest).Bytes(), &unstructuredRes)
