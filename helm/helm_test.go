@@ -1,6 +1,7 @@
 package helm_test
 
 import (
+	"errors"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/thallesfreitaszup/helm-module/helm"
@@ -24,6 +25,17 @@ var _ = Describe("Helm", func() {
 			manifests, err := h.Render()
 			Expect(err).To(BeNil())
 			Expect(len(manifests)).To(Equal(2))
+		})
+	})
+
+	Context("when fails to download chart", func() {
+		It("should return error", func() {
+			expectedError := "failed to download repo"
+			h := helm.New(source, mockGetter, options, dst)
+			mockGetter.On("Get").Return(errors.New(expectedError))
+			manifests, err := h.Render()
+			Expect(err.Error()).To(Equal(expectedError))
+			Expect(len(manifests)).To(Equal(0))
 		})
 	})
 
