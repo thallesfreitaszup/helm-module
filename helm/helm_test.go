@@ -52,23 +52,13 @@ var _ = Describe("Helm", func() {
 
 	Context("when fails to render manifest", func() {
 		It("should return error", func() {
-			dst = "./fake-chart/fake-app-with-schema"
+			dst = "./fake-chart/fake-app-invalid"
 			h := helm.New(source, mockGetter, options, dst)
 			mockGetter.On("Get").Return(nil)
 			manifests, err := h.Render()
-			errorSubstring := "values don't meet the specifications of the schema(s) in the following chart(s):"
-			Expect(err.Error()).To(ContainSubstring(errorSubstring))
+			expectedError := "template: fake-app/templates/deployment.yaml:4:18: executing \"fake-app/templates/deployment.yaml\" at <.Xalues.xpto>: nil pointer evaluating interface {}.xpto"
+			Expect(err.Error()).To(Equal(expectedError))
 			Expect(len(manifests)).To(Equal(0))
-		})
-	})
-
-	Context("when conversion to unstructured manifests fails", func() {
-		It("should return error", func() {
-			h := helm.New(source, mockGetter, options, dst)
-			mockGetter.On("Get").Return(nil)
-			manifests, err := h.Render()
-			Expect(err).To(BeNil())
-			Expect(len(manifests)).To(Equal(2))
 		})
 	})
 
