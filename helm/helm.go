@@ -18,6 +18,7 @@ package helm
 
 import (
 	"bytes"
+	"errors"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
@@ -51,7 +52,11 @@ func New(source string, getter ManifestGetter, options Options, dst string) Helm
 
 func (h Helm) Render() ([]unstructured.Unstructured, error) {
 	var unstructuredManifests []unstructured.Unstructured
-	err := h.ManifestGetter.Get()
+	unstructuredManifests, err := h.getCachedManifests()
+	if err == nil {
+		return unstructuredManifests, err
+	}
+	err = h.ManifestGetter.Get()
 	if err != nil {
 		return unstructuredManifests, err
 	}
@@ -69,6 +74,13 @@ func (h Helm) Render() ([]unstructured.Unstructured, error) {
 		return unstructuredManifests, err
 	}
 	return unstructuredManifests, nil
+}
+
+func (h Helm) getCachedManifests() ([]unstructured.Unstructured, error) {
+	if h.Options.Cache == nil {
+		return nil, errors.New("no cache defined")
+	}
+	return h.Options.Cache.GetManifests()
 }
 
 func (h Helm) toUnstructured(list map[string]string, unstructuredManifests *[]unstructured.Unstructured) error {
@@ -104,7 +116,8 @@ type Auth struct {
 	BearerToken string
 }
 
-type Cache struct {
+type Cache interface {
+	GetManifests() ([]unstructured.Unstructured, error)
 }
 
 type Options struct {
