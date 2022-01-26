@@ -80,7 +80,7 @@ func (h Helm) getCachedManifests() ([]unstructured.Unstructured, error) {
 	if h.Options.Cache == nil {
 		return nil, errors.New("no cache defined")
 	}
-	return h.Options.Cache.GetManifests()
+	return h.Options.Cache.GetManifests(h.Source)
 }
 
 func (h Helm) toUnstructured(list map[string]string, unstructuredManifests *[]unstructured.Unstructured) error {
@@ -117,7 +117,7 @@ type Auth struct {
 }
 
 type Cache interface {
-	GetManifests() ([]unstructured.Unstructured, error)
+	GetManifests(source string) ([]unstructured.Unstructured, error)
 }
 
 type Options struct {
