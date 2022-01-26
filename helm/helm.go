@@ -1,7 +1,24 @@
+/*
+ * Copyright 2022 ZUP IT SERVICOS EM TECNOLOGIA E INOVACAO SA
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package helm
 
 import (
 	"bytes"
+	"errors"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
@@ -35,7 +52,11 @@ func New(source string, getter ManifestGetter, options Options, dst string) Helm
 
 func (h Helm) Render() ([]unstructured.Unstructured, error) {
 	var unstructuredManifests []unstructured.Unstructured
-	err := h.ManifestGetter.Get()
+	unstructuredManifests, err := h.getCachedManifests()
+	if err == nil {
+		return unstructuredManifests, err
+	}
+	err = h.ManifestGetter.Get()
 	if err != nil {
 		return unstructuredManifests, err
 	}
@@ -53,6 +74,13 @@ func (h Helm) Render() ([]unstructured.Unstructured, error) {
 		return unstructuredManifests, err
 	}
 	return unstructuredManifests, nil
+}
+
+func (h Helm) getCachedManifests() ([]unstructured.Unstructured, error) {
+	if h.Options.Cache == nil {
+		return nil, errors.New("no cache defined")
+	}
+	return h.Options.Cache.GetManifests(h.Source)
 }
 
 func (h Helm) toUnstructured(list map[string]string, unstructuredManifests *[]unstructured.Unstructured) error {
@@ -88,7 +116,8 @@ type Auth struct {
 	BearerToken string
 }
 
-type Cache struct {
+type Cache interface {
+	GetManifests(source string) ([]unstructured.Unstructured, error)
 }
 
 type Options struct {
