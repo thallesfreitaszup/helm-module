@@ -78,7 +78,7 @@ func (h Helm) Render() ([]unstructured.Unstructured, error) {
 	}
 	err = h.cacheManifests(unstructuredManifests)
 	if err != nil {
-		return unstructuredManifests, err
+		return nil, err
 	}
 	return unstructuredManifests, nil
 }

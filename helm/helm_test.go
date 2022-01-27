@@ -42,6 +42,7 @@ var _ = Describe("Helm", func() {
 		mockGetter = new(mocks.ManifestGetter)
 		options = helm.Options{}
 	})
+
 	Context("when the source is a valid chart", func() {
 		It("should download from source and return the correct manifests", func() {
 			randBytes := make([]byte, 16)
@@ -81,6 +82,20 @@ var _ = Describe("Helm", func() {
 			Expect(len(manifests)).To(Equal(2))
 			mockCache.AssertNumberOfCalls(GinkgoT(), "Add", 1)
 		})
+
+		It("should return error when fails to add to cache", func() {
+			mockCache := new(mocks.Cache)
+			options.Cache = mockCache
+			errorMessage := "failed to add to cache"
+			h := helm.New(source, mockGetter, options, dst)
+			mockCache.On("GetManifests", source).Return(nil, errors.New("no manifests cached"))
+			mockGetter.On("Get").Return(nil)
+			mockCache.On("Add", source, mock.Anything).Return(errors.New(errorMessage))
+			manifests, err := h.Render()
+			Expect(err.Error()).To(Equal(errorMessage))
+			Expect(len(manifests)).To(Equal(0))
+			mockCache.AssertNumberOfCalls(GinkgoT(), "Add", 1)
+		})
 	})
 
 	Context("when fails to download chart", func() {
@@ -94,8 +109,8 @@ var _ = Describe("Helm", func() {
 		})
 	})
 
-	Context("when there are cached manifests should return it", func() {
-		It("should return error", func() {
+	Context("when there are cached manifests", func() {
+		It(" should return it", func() {
 			mockCache := new(mocks.Cache)
 			options.Cache = mockCache
 			h := helm.New(source, mockGetter, options, dst)
