@@ -17,11 +17,18 @@
 package helm_test
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
+	"github.com/hashicorp/go-getter"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/thallesfreitaszup/helm-module/helm"
 	"github.com/thallesfreitaszup/helm-module/helm/mocks"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"os"
+	"path/filepath"
 )
 
 var _ = Describe("Helm", func() {
@@ -35,6 +42,24 @@ var _ = Describe("Helm", func() {
 		options = helm.Options{}
 	})
 	Context("when the source is a valid chart", func() {
+		It("should download from source and return the correct manifests", func() {
+			randBytes := make([]byte, 16)
+			rand.Read(randBytes)
+			dst := filepath.Join(os.TempDir(), hex.EncodeToString(randBytes))
+			pwd, _ := os.Getwd()
+			client := getter.Client{
+				Src:  "./fake-chart/fake-app",
+				Dst:  dst,
+				Mode: getter.ClientModeAny,
+				Pwd:  pwd,
+				Ctx:  context.TODO(),
+			}
+			h := helm.New(client.Src, &client, options, client.Dst)
+			manifests, err := h.Render()
+			Expect(err).To(BeNil())
+			Expect(len(manifests)).To(Equal(2))
+		})
+
 		It("should return the correct manifests", func() {
 			h := helm.New(source, mockGetter, options, dst)
 			mockGetter.On("Get").Return(nil)
@@ -52,6 +77,20 @@ var _ = Describe("Helm", func() {
 			manifests, err := h.Render()
 			Expect(err.Error()).To(Equal(expectedError))
 			Expect(len(manifests)).To(Equal(0))
+		})
+	})
+
+	Context("when there cached manifests should return it", func() {
+		It("should return error", func() {
+			mockCache := new(mocks.Cache)
+			options.Cache = mockCache
+			h := helm.New(source, mockGetter, options, dst)
+			mockCache.On("GetManifests", source).Return(getUnstructuredManifests(), nil)
+			manifests, err := h.Render()
+			mockGetter.On("Get").Times(0)
+			Expect(err).To(BeNil())
+			Expect(len(manifests)).To(Equal(1))
+			Expect(manifests).To(Equal(getUnstructuredManifests()))
 		})
 	})
 
@@ -81,13 +120,27 @@ var _ = Describe("Helm", func() {
 	Context("when fails to render manifest", func() {
 		It("should return error", func() {
 			dst = "./fake-chart/fake-app-invalid"
+			expectedErr := "template: fake-app/templates/deployment.yaml:4:18: executing \"fake-app/templates/deployment.yaml\" at <.Xalues.xpto>: nil pointer evaluating interface {}.xpto"
 			h := helm.New(source, mockGetter, options, dst)
 			mockGetter.On("Get").Return(nil)
 			manifests, err := h.Render()
-			expectedError := "template: fake-app/templates/deployment.yaml:4:18: executing \"fake-app/templates/deployment.yaml\" at <.Xalues.xpto>: nil pointer evaluating interface {}.xpto"
-			Expect(err.Error()).To(Equal(expectedError))
+			Expect(err.Error()).To(Equal(expectedErr))
 			Expect(len(manifests)).To(Equal(0))
+
 		})
 	})
 
 })
+
+func getUnstructuredManifests() []unstructured.Unstructured {
+	unstructuredManifest := unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata": map[string]interface{}{
+				"name": "fake-deployment",
+			},
+		},
+	}
+	return []unstructured.Unstructured{unstructuredManifest}
+}
