@@ -19,6 +19,8 @@ package helm
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	getter "github.com/hashicorp/go-getter"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
@@ -29,15 +31,15 @@ import (
 	"strings"
 )
 
-type ManifestGetter interface {
-	Get() error
-}
 type Helm struct {
 	Source         string
 	ManifestGetter ManifestGetter
 	Dst            string
 	Options        Options
 	Decoder        runtime.Codec
+}
+type ManifestGetter interface {
+	Get() error
 }
 
 func New(source string, getter ManifestGetter, options Options, dst string) Helm {
@@ -51,6 +53,7 @@ func New(source string, getter ManifestGetter, options Options, dst string) Helm
 }
 
 func (h Helm) Render() ([]unstructured.Unstructured, error) {
+	h.configureClient()
 	var unstructuredManifests []unstructured.Unstructured
 	unstructuredManifests, err := h.getCachedManifests()
 	if err == nil {
@@ -73,7 +76,32 @@ func (h Helm) Render() ([]unstructured.Unstructured, error) {
 	if err != nil {
 		return unstructuredManifests, err
 	}
+	h.cacheManifests(unstructuredManifests)
+	if err != nil {
+		return unstructuredManifests, err
+	}
 	return unstructuredManifests, nil
+}
+
+func (h Helm) configureClient() {
+	goGetter, ok := h.ManifestGetter.(*getter.Client)
+	if !ok {
+		return
+	}
+	if h.Options.Git.Path != "" {
+		goGetter.Src = fmt.Sprintf("%s/%s", goGetter.Src, h.Options.Git.Path)
+	}
+	if h.Options.Git.Branch != "" && h.Options.Git.SSHKey != "" {
+		goGetter.Src = fmt.Sprintf("%s?ref=%s&sshkey=%s", goGetter.Src, h.Options.Git.Branch, h.Options.Git.SSHKey)
+	} else {
+		if h.Options.Git.Branch != "" {
+			goGetter.Src = fmt.Sprintf("%s?ref=%s", goGetter.Src, h.Options.Git.Branch)
+		}
+		if h.Options.Git.SSHKey != "" {
+			goGetter.Src = fmt.Sprintf("%s?sshkey=%s", goGetter.Src, h.Options.Git.SSHKey)
+		}
+	}
+	h.ManifestGetter = goGetter
 }
 
 func (h Helm) getCachedManifests() ([]unstructured.Unstructured, error) {
@@ -111,16 +139,25 @@ func (h Helm) getChartAndValues() (*chart.Chart, chartutil.Values, error) {
 	return chart, values, nil
 }
 
-type Auth struct {
-	SSHKey      string
-	BearerToken string
+func (h Helm) cacheManifests(manifests []unstructured.Unstructured) error {
+	if h.Options.Cache == nil {
+		return nil
+	}
+	return h.Options.Cache.Add(h.Source, manifests)
+}
+
+type Git struct {
+	SSHKey string
+	Branch string
+	Path   string
 }
 
 type Cache interface {
 	GetManifests(source string) ([]unstructured.Unstructured, error)
+	Add(key, value interface{}) error
 }
 
 type Options struct {
 	Cache Cache
-	Auth  Auth
+	Git   Git
 }
