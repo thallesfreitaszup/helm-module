@@ -24,10 +24,11 @@ After that call the **Render** method that will return the desired manifests:
 
     ``
 ## Options
-In the helm options you can pass a SSHKEY if you want to download from private repositories, this key must not have a passphrase.For more explanation see ```https://www.ssh.com/academy/ssh/passphrase```
+In the helm options you can configure some git options like branch, the path where templates are located and  ssh key if you want to download from private repositories, this key must not have a passphrase.For more explanation see ```https://www.ssh.com/academy/ssh/passphrase```
 It's also possible to configure a cache passing a struct that fits with the cache interface.For a cache implementation use https://github.com/ZupIT/charlescd-k8s-config-cache/.
 See example
 ``` 
-helm.Options{ Cache: someCache, SSHKey: 'some-key' }
+gitOptions := helm.Git{SSHKey: "some-key", Branch: "main", Path: "/some-path"}
+helm.Options{ Cache: someCache, Git: gitOptions }
 	
 ```
