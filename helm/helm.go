@@ -76,7 +76,7 @@ func (h Helm) Render() ([]unstructured.Unstructured, error) {
 	if err != nil {
 		return unstructuredManifests, err
 	}
-	h.cacheManifests(unstructuredManifests)
+	err = h.cacheManifests(unstructuredManifests)
 	if err != nil {
 		return unstructuredManifests, err
 	}
@@ -101,7 +101,6 @@ func (h Helm) configureClient() {
 			goGetter.Src = fmt.Sprintf("%s?sshkey=%s", goGetter.Src, h.Options.Git.SSHKey)
 		}
 	}
-	h.ManifestGetter = goGetter
 }
 
 func (h Helm) getCachedManifests() ([]unstructured.Unstructured, error) {

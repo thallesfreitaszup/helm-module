@@ -18,11 +18,13 @@ func main() {
 	getter := getter.Client{
 		Ctx:  context.TODO(),
 		Pwd:  pwd,
-		Src:  "git::git@gitlab.com:thalleslmf/event-receiver.git/event-receiver",
+		Src:  "git::git@gitlab.com:thalleslmf/event-receiver.git",
 		Dst:  filepath.Join(os.TempDir(), "helm"+strconv.Itoa(int(z.FastRand()))),
 		Mode: getter.ClientModeAny,
 	}
-	h := helm.New(getter.Src, &getter, helm.Options{}, getter.Dst)
+
+	gitOptions := helm.Git{Branch: "main", Path: "/event-receiver"}
+	h := helm.New(getter.Src, &getter, helm.Options{Git: gitOptions}, getter.Dst)
 	manifests, err := h.Render()
 	if err != nil {
 		log.Fatal(err)
