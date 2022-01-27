@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/go-getter"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/mock"
 	"github.com/thallesfreitaszup/helm-module/helm"
 	"github.com/thallesfreitaszup/helm-module/helm/mocks"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -67,6 +68,19 @@ var _ = Describe("Helm", func() {
 			Expect(err).To(BeNil())
 			Expect(len(manifests)).To(Equal(2))
 		})
+
+		It("should add the manifests to cache", func() {
+			mockCache := new(mocks.Cache)
+			options.Cache = mockCache
+			h := helm.New(source, mockGetter, options, dst)
+			mockCache.On("GetManifests", source).Return(nil, errors.New("no manifests cached"))
+			mockGetter.On("Get").Return(nil)
+			mockCache.On("Add", source, mock.Anything).Return(nil)
+			manifests, err := h.Render()
+			Expect(err).To(BeNil())
+			Expect(len(manifests)).To(Equal(2))
+			mockCache.AssertNumberOfCalls(GinkgoT(), "Add", 1)
+		})
 	})
 
 	Context("when fails to download chart", func() {
@@ -80,7 +94,7 @@ var _ = Describe("Helm", func() {
 		})
 	})
 
-	Context("when there cached manifests should return it", func() {
+	Context("when there are cached manifests should return it", func() {
 		It("should return error", func() {
 			mockCache := new(mocks.Cache)
 			options.Cache = mockCache
