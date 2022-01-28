@@ -46,7 +46,8 @@ var _ = Describe("Helm", func() {
 	Context("when the source is a valid chart", func() {
 		It("should download from source and return the correct manifests", func() {
 			randBytes := make([]byte, 16)
-			rand.Read(randBytes)
+			_, err := rand.Read(randBytes)
+			Expect(err).To(BeNil())
 			dst := filepath.Join(os.TempDir(), hex.EncodeToString(randBytes))
 			pwd, _ := os.Getwd()
 			client := getter.Client{
